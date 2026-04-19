@@ -157,7 +157,19 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, mode, thinking } = await req.json();
+    const { messages, mode, thinking, debug } = await req.json();
+
+    if (debug === "list-models") {
+      const keys = getGeminiKeys();
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${keys[0]}`);
+      const d = await r.json();
+      const flash = (d.models || [])
+        .filter((m: any) => m.name.includes("flash"))
+        .map((m: any) => ({ name: m.name, methods: m.supportedGenerationMethods }));
+      return new Response(JSON.stringify({ flash }, null, 2), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // ── IMAGE GENERATION / EDIT ──
     if (mode === "image") {
