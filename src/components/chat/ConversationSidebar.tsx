@@ -63,7 +63,7 @@ export const ConversationSidebar = ({ activeId, onSelect, refreshKey, open, onCl
             <div className="w-8 h-8 rounded-xl gemini-bg-gradient flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-white" />
             </div>
-            <span className="font-semibold text-lg gemini-text-gradient">Mira</span>
+            <span className="font-semibold text-lg gemini-text-gradient">Alsa AI</span>
           </div>
           <button onClick={onClose} className="md:hidden text-muted-foreground p-1">
             <X className="w-5 h-5" />

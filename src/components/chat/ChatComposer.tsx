@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Send, Plus, Mic, ImageIcon, X, Sparkles, Square } from "lucide-react";
+import { Send, Plus, Mic, ImageIcon, X, Sparkles, Square, Brain, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -9,9 +9,10 @@ interface Props {
   disabled?: boolean;
   onStop?: () => void;
   isStreaming?: boolean;
+  thinking: boolean;
+  onToggleThinking: () => void;
 }
 
-// Web Speech API typings
 declare global {
   interface Window {
     SpeechRecognition: any;
@@ -19,7 +20,9 @@ declare global {
   }
 }
 
-export const ChatComposer = ({ onSend, disabled, onStop, isStreaming }: Props) => {
+export const ChatComposer = ({
+  onSend, disabled, onStop, isStreaming, thinking, onToggleThinking,
+}: Props) => {
   const [text, setText] = useState("");
   const [imageData, setImageData] = useState<string | null>(null);
   const [genImageMode, setGenImageMode] = useState(false);
@@ -27,6 +30,9 @@ export const ChatComposer = ({ onSend, disabled, onStop, isStreaming }: Props) =
   const fileRef = useRef<HTMLInputElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
+  // For dedup of speech results — store transcript baseline at start
+  const baseTextRef = useRef<string>("");
+  const finalTranscriptRef = useRef<string>("");
 
   useEffect(() => {
     if (taRef.current) {
@@ -68,29 +74,68 @@ export const ChatComposer = ({ onSend, disabled, onStop, isStreaming }: Props) =
       return;
     }
     const rec = new SR();
-    rec.continuous = false;
+    rec.continuous = true;
     rec.interimResults = true;
     rec.lang = navigator.language || "en-US";
+    baseTextRef.current = text ? text + " " : "";
+    finalTranscriptRef.current = "";
+
     rec.onstart = () => setListening(true);
     rec.onend = () => setListening(false);
     rec.onerror = (e: any) => {
       setListening(false);
-      toast.error("Mic error: " + (e.error || "unknown"));
-    };
-    rec.onresult = (e: any) => {
-      let transcript = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        transcript += e.results[i][0].transcript;
+      if (e.error !== "no-speech" && e.error !== "aborted") {
+        toast.error("Mic error: " + (e.error || "unknown"));
       }
-      setText((prev) => (prev ? prev + " " : "") + transcript);
+    };
+    // Fix: only append NEW final results, show interim separately, no duplication
+    rec.onresult = (e: any) => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const transcript = e.results[i][0].transcript;
+        if (e.results[i].isFinal) {
+          finalTranscriptRef.current += transcript + " ";
+        } else {
+          interim += transcript;
+        }
+      }
+      setText(baseTextRef.current + finalTranscriptRef.current + interim);
     };
     recognitionRef.current = rec;
-    rec.start();
+    try {
+      rec.start();
+    } catch {
+      // ignore double-start
+    }
   };
 
   return (
     <div className="px-3 pb-4 pt-2">
       <div className="max-w-3xl mx-auto">
+        {/* Mode toggle */}
+        <div className="flex justify-center mb-2">
+          <div className="inline-flex bg-surface rounded-full p-1 border border-border">
+            <button
+              onClick={() => thinking && onToggleThinking()}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors",
+                !thinking ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+              )}
+            >
+              <Zap className="w-3 h-3" /> Fast
+            </button>
+            <button
+              onClick={() => !thinking && onToggleThinking()}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors",
+                thinking ? "bg-primary text-primary-foreground" : "text-muted-foreground",
+              )}
+            >
+              <Brain className="w-3 h-3" /> Thinking
+            </button>
+          </div>
+        </div>
+
         {(imageData || genImageMode) && (
           <div className="flex gap-2 mb-2 flex-wrap">
             {imageData && (
@@ -158,7 +203,7 @@ export const ChatComposer = ({ onSend, disabled, onStop, isStreaming }: Props) =
                 submit();
               }
             }}
-            placeholder={genImageMode ? "Describe an image to generate..." : "Ask Mira anything..."}
+            placeholder={genImageMode ? "Describe an image to generate..." : "Ask Alsa AI anything..."}
             rows={1}
             className="flex-1 bg-transparent resize-none outline-none px-2 py-2.5 text-[15px] placeholder:text-muted-foreground max-h-[200px]"
           />
@@ -201,7 +246,7 @@ export const ChatComposer = ({ onSend, disabled, onStop, isStreaming }: Props) =
           )}
         </div>
         <p className="text-[11px] text-muted-foreground text-center mt-2">
-          Mira can make mistakes. Verify important information.
+          Alsa AI can make mistakes. Verify important information.
         </p>
       </div>
     </div>

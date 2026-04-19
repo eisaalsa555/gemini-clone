@@ -35,7 +35,7 @@ export default function Auth() {
           },
         });
         if (error) throw error;
-        toast.success("Account banaya gaya! Aap login ho gaye.");
+        toast.success("Account ban gaya! Welcome to Alsa AI 🎉");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -55,14 +55,14 @@ export default function Auth() {
           <div className="w-10 h-10 rounded-2xl gemini-bg-gradient flex items-center justify-center">
             <Sparkles className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-2xl font-semibold gemini-text-gradient">Mira</h1>
+          <h1 className="text-2xl font-semibold gemini-text-gradient">Alsa AI</h1>
         </div>
 
         <h2 className="text-xl font-medium mb-2">
           {mode === "login" ? "Welcome back" : "Create your account"}
         </h2>
         <p className="text-sm text-muted-foreground mb-6">
-          {mode === "login" ? "Sign in to continue chatting" : "Sign up to start with Mira"}
+          {mode === "login" ? "Sign in to continue chatting" : "Sign up to start with Alsa AI"}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">

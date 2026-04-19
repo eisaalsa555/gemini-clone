@@ -14,6 +14,13 @@ export interface ChatMessage {
 export const MessageBubble = ({ message }: { message: ChatMessage }) => {
   const isUser = message.role === "user";
 
+  // Disable image download (right-click, drag, save) and code copy
+  const noSaveProps = {
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+    onDragStart: (e: React.DragEvent) => e.preventDefault(),
+    draggable: false,
+  };
+
   return (
     <div className={cn("flex gap-3 px-4 py-4 animate-fade-in-up", isUser ? "justify-end" : "justify-start")}>
       {!isUser && (
@@ -27,7 +34,9 @@ export const MessageBubble = ({ message }: { message: ChatMessage }) => {
           <img
             src={message.imageUrl}
             alt="message attachment"
-            className="rounded-2xl max-h-80 object-cover border border-border"
+            {...noSaveProps}
+            className="rounded-2xl max-h-80 object-cover border border-border select-none pointer-events-auto"
+            style={{ WebkitUserSelect: "none", userSelect: "none", WebkitTouchCallout: "none" }}
           />
         )}
         {message.content && (
@@ -42,8 +51,42 @@ export const MessageBubble = ({ message }: { message: ChatMessage }) => {
             {isUser ? (
               <p className="whitespace-pre-wrap">{message.content}</p>
             ) : (
-              <div className="prose-mira">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+              <div
+                className="prose-mira"
+                onCopy={(e) => e.preventDefault()}
+                onContextMenu={(e) => e.preventDefault()}
+                style={{ WebkitUserSelect: "none", userSelect: "none" }}
+              >
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    code({ children, ...props }: any) {
+                      return (
+                        <code
+                          {...props}
+                          onCopy={(e) => e.preventDefault()}
+                          style={{ WebkitUserSelect: "none", userSelect: "none" }}
+                        >
+                          {children}
+                        </code>
+                      );
+                    },
+                    pre({ children, ...props }: any) {
+                      return (
+                        <pre
+                          {...props}
+                          onCopy={(e) => e.preventDefault()}
+                          onContextMenu={(e) => e.preventDefault()}
+                          style={{ WebkitUserSelect: "none", userSelect: "none" }}
+                        >
+                          {children}
+                        </pre>
+                      );
+                    },
+                  }}
+                >
+                  {message.content}
+                </ReactMarkdown>
                 {message.isStreaming && (
                   <span className="inline-block w-2 h-4 bg-primary ml-1 align-middle animate-pulse" />
                 )}
