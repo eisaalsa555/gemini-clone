@@ -9,11 +9,13 @@ import { Menu, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 const SUGGESTIONS = [
-  "Quantum computing ko simple language me samjhao",
+  "Mujhe aaj ka motivational quote bhejo 💪",
   "Generate an image of a futuristic city at sunset",
-  "Write a Python script to scrape news headlines",
+  "https://news.ycombinator.com — top headlines summarize karo",
   "Plan a 3-day trip to Goa for me",
 ];
+
+const FUNCTION_NAME = "mobile-chat";
 
 export default function Chat() {
   const { user } = useAuth();
@@ -22,10 +24,10 @@ export default function Chat() {
   const [streaming, setStreaming] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [thinking, setThinking] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // Load messages when convo changes
   useEffect(() => {
     if (!activeConvo) {
       setMessages([]);
@@ -106,8 +108,12 @@ export default function Chat() {
     await persistMessage(convoId, "user", text, imageDataUrl);
     setRefreshKey((k) => k + 1);
 
-    // ── IMAGE GENERATION ────────────────────
-    if (generateImage) {
+    // Auto-detect image-edit intent: user uploaded an image AND asked to edit
+    const editKeywords = /\b(edit|change|modify|remove|add|replace|make|turn|convert|transform|put|background|color|colour)\b/i;
+    const isEditRequest = !!imageDataUrl && editKeywords.test(text);
+
+    // ── IMAGE GENERATION / EDIT ────────────────
+    if (generateImage || isEditRequest) {
       setStreaming(true);
       const placeholder: ChatMessage = {
         id: crypto.randomUUID(),
@@ -117,14 +123,21 @@ export default function Chat() {
       };
       setMessages((m) => [...m, placeholder]);
       try {
-        const { data, error } = await supabase.functions.invoke("chat", {
-          body: { mode: "image", messages: [{ role: "user", content: text }] },
+        const userContent: any = imageDataUrl
+          ? [
+              { type: "text", text: text || "Generate / edit this image" },
+              { type: "image_url", image_url: { url: imageDataUrl } },
+            ]
+          : text;
+
+        const { data, error } = await supabase.functions.invoke(FUNCTION_NAME, {
+          body: { mode: "image", messages: [{ role: "user", content: userContent }] },
         });
         if (error) throw error;
         const finalMsg: ChatMessage = {
           id: placeholder.id,
           role: "assistant",
-          content: data.text || "Here is your image:",
+          content: data.text || (isEditRequest ? "Yeh raha edited image ✨" : "Yeh raha aapka image ✨"),
           imageUrl: data.imageUrl,
         };
         setMessages((m) => m.map((x) => (x.id === placeholder.id ? finalMsg : x)));
@@ -138,12 +151,11 @@ export default function Chat() {
       return;
     }
 
-    // ── STREAMING CHAT ──────────────────────
+    // ── STREAMING CHAT ──
     setStreaming(true);
     const assistantId = crypto.randomUUID();
     setMessages((m) => [...m, { id: assistantId, role: "assistant", content: "", isStreaming: true }]);
 
-    // Build payload — include image if present (multimodal)
     const history = [...messages, userMsg].map((m) => {
       if (m.imageUrl && m.role === "user") {
         return {
@@ -161,20 +173,20 @@ export default function Chat() {
     abortRef.current = controller;
 
     try {
-      const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+      const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${FUNCTION_NAME}`;
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: history }),
+        body: JSON.stringify({ messages: history, thinking }),
         signal: controller.signal,
       });
 
       if (!resp.ok || !resp.body) {
         if (resp.status === 429) toast.error("Rate limit. Please wait and try again.");
-        else if (resp.status === 402) toast.error("AI credits exhausted. Add credits in workspace settings.");
+        else if (resp.status === 402) toast.error("AI credits exhausted.");
         else toast.error("Failed to get response");
         setMessages((m) => m.filter((x) => x.id !== assistantId));
         return;
@@ -260,7 +272,7 @@ export default function Chat() {
             <Menu className="w-5 h-5" />
           </Button>
           <h1 className="text-xl font-medium text-muted-foreground">
-            <span className="gemini-text-gradient font-semibold">Mira</span>
+            <span className="gemini-text-gradient font-semibold">Alsa AI</span>
           </h1>
         </header>
 
@@ -278,7 +290,7 @@ export default function Chat() {
                 {SUGGESTIONS.map((s) => (
                   <button
                     key={s}
-                    onClick={() => handleSend(s, null, s.toLowerCase().includes("image"))}
+                    onClick={() => handleSend(s, null, s.toLowerCase().includes("image") && !s.includes("http"))}
                     className="text-left p-4 rounded-2xl bg-surface hover:bg-surface-hover border border-border text-sm text-foreground transition-colors"
                   >
                     {s}
@@ -300,6 +312,8 @@ export default function Chat() {
           disabled={streaming}
           onStop={handleStop}
           isStreaming={streaming}
+          thinking={thinking}
+          onToggleThinking={() => setThinking((t) => !t)}
         />
       </main>
     </div>
