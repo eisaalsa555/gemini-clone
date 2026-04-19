@@ -259,8 +259,9 @@ Deno.serve(async (req) => {
       },
     };
 
+    const modelName = thinking ? "gemini-2.5-flash" : "gemini-flash-latest";
     const resp = await callGeminiWithFallback(
-      "models/gemini-1.5-flash-latest:streamGenerateContent",
+      `models/${modelName}:streamGenerateContent`,
       body,
       { stream: true },
     );
