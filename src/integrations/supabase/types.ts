@@ -38,6 +38,89 @@ export type Database = {
         }
         Relationships: []
       }
+      device_commands: {
+        Row: {
+          command: string
+          completed_at: string | null
+          created_at: string
+          device_id: string
+          error: string | null
+          id: string
+          payload: Json
+          result: Json | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          command: string
+          completed_at?: string | null
+          created_at?: string
+          device_id: string
+          error?: string | null
+          id?: string
+          payload?: Json
+          result?: Json | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          command?: string
+          completed_at?: string | null
+          created_at?: string
+          device_id?: string
+          error?: string | null
+          id?: string
+          payload?: Json
+          result?: Json | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_commands_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      devices: {
+        Row: {
+          created_at: string
+          device_name: string
+          id: string
+          is_online: boolean
+          last_seen: string
+          model: string | null
+          platform: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_name?: string
+          id?: string
+          is_online?: boolean
+          last_seen?: string
+          model?: string | null
+          platform?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device_name?: string
+          id?: string
+          is_online?: boolean
+          last_seen?: string
+          model?: string | null
+          platform?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
