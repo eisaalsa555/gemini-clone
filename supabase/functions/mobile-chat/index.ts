@@ -329,17 +329,20 @@ Deno.serve(async (req) => {
               if (line.endsWith("\r")) line = line.slice(0, -1);
               if (!line || !line.startsWith("data: ")) continue;
               const json = line.slice(6).trim();
-              if (!json) continue;
+              if (!json || json === "[DONE]") continue;
               try {
                 const parsed = JSON.parse(json);
-                const text =
-                  parsed?.candidates?.[0]?.content?.parts
-                    ?.map((p: any) => p.text || "")
-                    .join("") || "";
+                let text = "";
+                if (usedLovableFallback) {
+                  text = parsed?.choices?.[0]?.delta?.content || "";
+                } else {
+                  text =
+                    parsed?.candidates?.[0]?.content?.parts
+                      ?.map((p: any) => p.text || "")
+                      .join("") || "";
+                }
                 if (text) {
-                  const chunk = {
-                    choices: [{ delta: { content: text } }],
-                  };
+                  const chunk = { choices: [{ delta: { content: text } }] };
                   controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
                 }
               } catch {
