@@ -159,58 +159,58 @@ Deno.serve(async (req) => {
   try {
     const { messages, mode, thinking } = await req.json();
 
-    // ── IMAGE GENERATION / EDIT ──
+    // ── IMAGE GENERATION / EDIT (via Lovable AI Gateway) ──
     if (mode === "image") {
-      const lastUser = [...messages].reverse().find((m: any) => m.role === "user");
-      const parts: any[] = [];
-      let promptText = "";
-
-      if (typeof lastUser?.content === "string") {
-        promptText = lastUser.content;
-        parts.push({ text: promptText });
-      } else if (Array.isArray(lastUser?.content)) {
-        for (const c of lastUser.content) {
-          if (c.type === "text") {
-            promptText += c.text;
-            parts.push({ text: c.text });
-          } else if (c.type === "image_url") {
-            const url: string = c.image_url?.url || "";
-            const m = url.match(/^data:(.+?);base64,(.+)$/);
-            if (m) parts.push({ inline_data: { mime_type: m[1], data: m[2] } });
-          }
-        }
+      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+      if (!lovableKey) {
+        return new Response(
+          JSON.stringify({ error: "LOVABLE_API_KEY not configured" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
       }
-      if (!promptText) parts.unshift({ text: "Generate an image" });
 
-      // Use Gemini 2.5 Flash Image (Nano Banana) — supports BOTH gen + edit
-      const resp = await callGeminiWithFallback(
-        "models/gemini-2.5-flash-image:generateContent",
+      const lastUser = [...messages].reverse().find((m: any) => m.role === "user");
+      const userContent = lastUser?.content;
+      const lovableMessages = [
         {
-          contents: [{ role: "user", parts }],
-          generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
+          role: "user",
+          content: typeof userContent === "string"
+            ? (userContent || "Generate an image")
+            : userContent,
         },
-      );
+      ];
+
+      const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${lovableKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-image-preview",
+          messages: lovableMessages,
+          modalities: ["image", "text"],
+        }),
+      });
 
       if (!resp.ok) {
         const t = await resp.text();
-        return new Response(JSON.stringify({ error: t }), {
+        const msg = resp.status === 429
+          ? "Bahut requests aa rahi hain, thodi der baad try karein 🙏"
+          : resp.status === 402
+          ? "AI credits khatam ho gaye, workspace me credits add karein."
+          : t;
+        return new Response(JSON.stringify({ error: msg }), {
           status: resp.status,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
       const data = await resp.json();
-      let imageUrl: string | null = null;
-      let text = "";
-      const respParts = data?.candidates?.[0]?.content?.parts || [];
-      for (const p of respParts) {
-        if (p.inline_data?.data) {
-          imageUrl = `data:${p.inline_data.mime_type || "image/png"};base64,${p.inline_data.data}`;
-        } else if (p.inlineData?.data) {
-          imageUrl = `data:${p.inlineData.mimeType || "image/png"};base64,${p.inlineData.data}`;
-        } else if (p.text) {
-          text += p.text;
-        }
-      }
+      const msg = data?.choices?.[0]?.message;
+      const imageUrl: string | null = msg?.images?.[0]?.image_url?.url ?? null;
+      const text: string = msg?.content ?? "";
+
       return new Response(JSON.stringify({ imageUrl, text }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
