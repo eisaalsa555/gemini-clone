@@ -35,10 +35,9 @@ export function useDeviceAgent() {
         const stored = localStorage.getItem(DEVICE_ID_KEY);
 
         // Register or refresh device
-        let deviceId = stored;
+        let deviceId: string | null = stored;
         if (deviceId) {
-          const { error } = await supabase
-            .from("devices")
+          const { error } = await (supabase.from("devices") as any)
             .update({
               is_online: true,
               last_seen: new Date().toISOString(),
@@ -50,8 +49,7 @@ export function useDeviceAgent() {
           if (error) deviceId = null;
         }
         if (!deviceId) {
-          const { data, error } = await supabase
-            .from("devices")
+          const { data, error } = await (supabase.from("devices") as any)
             .insert({
               user_id: user.id,
               device_name: `${info.manufacturer || "My"} ${info.model || "Phone"}`.trim(),
@@ -66,7 +64,7 @@ export function useDeviceAgent() {
             console.error("device register failed", error);
             return;
           }
-          deviceId = data.id;
+          deviceId = data.id as string;
           localStorage.setItem(DEVICE_ID_KEY, deviceId);
         }
         if (cancelled) return;
@@ -80,15 +78,13 @@ export function useDeviceAgent() {
         // Heartbeat: mark online every 30s
         heartbeat = setInterval(async () => {
           if (!deviceIdRef.current) return;
-          await supabase
-            .from("devices")
+          await (supabase.from("devices") as any)
             .update({ is_online: true, last_seen: new Date().toISOString() })
             .eq("id", deviceIdRef.current);
         }, 30000);
 
         // Pick up any pending commands left while offline
-        const { data: pending } = await supabase
-          .from("device_commands")
+        const { data: pending } = await (supabase.from("device_commands") as any)
           .select("*")
           .eq("device_id", deviceId)
           .eq("status", "pending");
@@ -122,11 +118,9 @@ export function useDeviceAgent() {
       if (heartbeat) clearInterval(heartbeat);
       if (channel) supabase.removeChannel(channel);
       if (deviceIdRef.current) {
-        supabase
-          .from("devices")
+        void (supabase.from("devices") as any)
           .update({ is_online: false })
-          .eq("id", deviceIdRef.current)
-          .then(() => {});
+          .eq("id", deviceIdRef.current);
       }
     };
   }, [user]);
@@ -205,8 +199,7 @@ async function handleCommand(cmd: any) {
         throw new Error(`Unknown command: ${cmd.command}`);
     }
 
-    await supabase
-      .from("device_commands")
+    await (supabase.from("device_commands") as any)
       .update({
         status: "done",
         result,
@@ -215,8 +208,7 @@ async function handleCommand(cmd: any) {
       .eq("id", cmd.id);
   } catch (e: any) {
     console.error("command failed", cmd.command, e);
-    await supabase
-      .from("device_commands")
+    await (supabase.from("device_commands") as any)
       .update({
         status: "failed",
         error: e?.message || String(e),

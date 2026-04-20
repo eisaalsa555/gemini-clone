@@ -95,19 +95,17 @@ export default function Devices() {
   }, [user]);
 
   const loadDevices = async () => {
-    const { data } = await supabase
-      .from("devices")
+    const { data } = await (supabase.from("devices") as any)
       .select("*")
       .order("last_seen", { ascending: false });
-    setDevices(data || []);
+    setDevices((data as Device[]) || []);
   };
   const loadCommands = async () => {
-    const { data } = await supabase
-      .from("device_commands")
+    const { data } = await (supabase.from("device_commands") as any)
       .select("*")
       .order("created_at", { ascending: false })
       .limit(20);
-    setCommands(data || []);
+    setCommands((data as Command[]) || []);
   };
   const loadAll = async () => {
     setLoading(true);
@@ -121,7 +119,7 @@ export default function Devices() {
     payload: Record<string, unknown> = {},
   ) => {
     if (!user) return;
-    const { error } = await supabase.from("device_commands").insert({
+    const { error } = await (supabase.from("device_commands") as any).insert({
       user_id: user.id,
       device_id: deviceId,
       command,
