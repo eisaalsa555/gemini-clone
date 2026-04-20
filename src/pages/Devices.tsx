@@ -173,7 +173,7 @@ export default function Devices() {
                         <div className="flex items-center gap-2">
                           <span
                             className={`h-2 w-2 rounded-full ${
-                              online ? "bg-green-500" : "bg-muted-foreground/40"
+                              online ? "bg-success" : "bg-muted-foreground/40"
                             }`}
                           />
                           <h3 className="font-semibold">{d.device_name}</h3>
@@ -280,7 +280,7 @@ export default function Devices() {
                 <Card key={c.id} className="p-3">
                   <div className="mb-1 flex items-center gap-2 text-sm">
                     {c.status === "done" ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <CheckCircle2 className="h-4 w-4 text-success" />
                     ) : c.status === "failed" ? (
                       <XCircle className="h-4 w-4 text-destructive" />
                     ) : (
