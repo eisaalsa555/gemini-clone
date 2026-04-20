@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { MessageSquarePlus, Trash2, LogOut, Sparkles, X } from "lucide-react";
+import { MessageSquarePlus, Trash2, LogOut, Sparkles, X, Smartphone } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -70,7 +71,7 @@ export const ConversationSidebar = ({ activeId, onSelect, refreshKey, open, onCl
           </button>
         </div>
 
-        <div className="px-3">
+        <div className="px-3 space-y-2">
           <Button
             onClick={() => {
               onSelect(null);
@@ -82,6 +83,15 @@ export const ConversationSidebar = ({ activeId, onSelect, refreshKey, open, onCl
             <MessageSquarePlus className="w-4 h-4" />
             New chat
           </Button>
+          <Link to="/devices" onClick={onClose}>
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-2 bg-surface-elevated hover:bg-surface-hover text-foreground rounded-full h-11"
+            >
+              <Smartphone className="w-4 h-4" />
+              My Devices
+            </Button>
+          </Link>
         </div>
 
         <div className="flex-1 overflow-y-auto chat-scroll mt-4 px-2">
