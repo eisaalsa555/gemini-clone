@@ -57,13 +57,24 @@ export const MessageBubble = ({ message }: { message: ChatMessage }) => {
 
       <div className={cn("max-w-[85%] md:max-w-[75%] flex flex-col gap-2", isUser && "items-end")}>
         {message.imageUrl && (
-          <img
-            src={message.imageUrl}
-            alt="message attachment"
-            {...noSaveProps}
-            className="rounded-2xl max-h-80 object-cover border border-border select-none pointer-events-auto"
-            style={{ WebkitUserSelect: "none", userSelect: "none", WebkitTouchCallout: "none" }}
-          />
+          <div className="relative group">
+            <img
+              src={message.imageUrl}
+              alt="message attachment"
+              {...noSaveProps}
+              className="rounded-2xl max-h-80 object-cover border border-border select-none pointer-events-auto"
+              style={{ WebkitUserSelect: "none", userSelect: "none", WebkitTouchCallout: "none" }}
+            />
+            {!isUser && (
+              <button
+                onClick={() => downloadImage(message.imageUrl!)}
+                className="absolute top-2 right-2 p-2 rounded-full bg-background/80 backdrop-blur-sm border border-border hover:bg-background transition-colors shadow-lg"
+                aria-label="Download image"
+              >
+                <Download className="w-4 h-4 text-foreground" />
+              </button>
+            )}
+          </div>
         )}
         {message.content && (
           <div
