@@ -248,18 +248,64 @@ Deno.serve(async (req) => {
     };
 
     const modelName = thinking ? "gemini-2.5-flash" : "gemini-flash-latest";
-    const resp = await callGeminiWithFallback(
-      `models/${modelName}:streamGenerateContent`,
-      body,
-      { stream: true },
-    );
+    let resp: Response;
+    let usedLovableFallback = false;
+    try {
+      resp = await callGeminiWithFallback(
+        `models/${modelName}:streamGenerateContent`,
+        body,
+        { stream: true },
+      );
+      if (!resp.ok) {
+        const t = await resp.text();
+        console.warn("Gemini non-ok, trying Lovable AI fallback:", resp.status, t.slice(0, 200));
+        throw new Error("gemini-failed");
+      }
+    } catch (_err) {
+      // ── FALLBACK: Lovable AI Gateway (no key needed) ──
+      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+      if (!lovableKey) {
+        return new Response(
+          JSON.stringify({ error: "Sabhi Gemini API keys ka quota khatam ho gaya hai 😔. Kal try karein ya naya key add karein." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      usedLovableFallback = true;
+      const lovableMessages = [
+        { role: "system", content: systemPrompt },
+        ...messages,
+      ];
+      resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${lovableKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: lovableMessages,
+          stream: true,
+        }),
+      });
+      if (!resp.ok || !resp.body) {
+        const t = await resp.text();
+        console.error("Lovable AI fallback also failed:", resp.status, t);
+        const errMsg = resp.status === 429
+          ? "Bahut zyada requests aa rahi hain, thodi der baad try karein 🙏"
+          : resp.status === 402
+          ? "AI credits khatam ho gaye, please workspace me credits add karein."
+          : "AI service temporarily unavailable.";
+        return new Response(
+          JSON.stringify({ error: errMsg }),
+          { status: resp.status || 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
 
-    if (!resp.ok || !resp.body) {
-      const t = await resp.text();
-      console.error("Gemini error:", resp.status, t);
+    if (!resp.body) {
       return new Response(
-        JSON.stringify({ error: t || "Gemini error" }),
-        { status: resp.status || 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        JSON.stringify({ error: "No response body" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -283,17 +329,20 @@ Deno.serve(async (req) => {
               if (line.endsWith("\r")) line = line.slice(0, -1);
               if (!line || !line.startsWith("data: ")) continue;
               const json = line.slice(6).trim();
-              if (!json) continue;
+              if (!json || json === "[DONE]") continue;
               try {
                 const parsed = JSON.parse(json);
-                const text =
-                  parsed?.candidates?.[0]?.content?.parts
-                    ?.map((p: any) => p.text || "")
-                    .join("") || "";
+                let text = "";
+                if (usedLovableFallback) {
+                  text = parsed?.choices?.[0]?.delta?.content || "";
+                } else {
+                  text =
+                    parsed?.candidates?.[0]?.content?.parts
+                      ?.map((p: any) => p.text || "")
+                      .join("") || "";
+                }
                 if (text) {
-                  const chunk = {
-                    choices: [{ delta: { content: text } }],
-                  };
+                  const chunk = { choices: [{ delta: { content: text } }] };
                   controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
                 }
               } catch {
