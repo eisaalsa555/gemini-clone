@@ -1,7 +1,33 @@
-import { Sparkles, User as UserIcon } from "lucide-react";
+import { Sparkles, User as UserIcon, Download } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+
+const downloadImage = async (url: string) => {
+  try {
+    let blob: Blob;
+    if (url.startsWith("data:")) {
+      const res = await fetch(url);
+      blob = await res.blob();
+    } else {
+      const res = await fetch(url, { mode: "cors" });
+      blob = await res.blob();
+    }
+    const ext = blob.type.split("/")[1]?.split("+")[0] || "png";
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = `alsa-ai-${Date.now()}.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+    toast.success("Image downloaded");
+  } catch {
+    toast.error("Download failed");
+  }
+};
 
 export interface ChatMessage {
   id: string;
