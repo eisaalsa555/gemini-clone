@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: "Alsa AI",
   webDir: "dist",
   server: {
-    url: "https://6054eeeb-e521-490f-a32b-c1659ebbd093.lovableproject.com?forceHideBadge=true",
+    url: "https://gem-control-hub.lovable.app/",
     cleartext: true,
   },
   plugins: {
